@@ -7,10 +7,17 @@ import { Star, MagnifyingGlass, Plus, X, Pushpin } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
-const FILTERS = [
-  { key: "all", label: "Alle åbne" },
+const LEVEL_FILTERS = [
+  { key: "all", label: "Alle" },
   { key: "project", label: "Projekt" },
   { key: "program", label: "Program" },
+];
+
+const STATUS_FILTERS = [
+  { key: "all", label: "Alle" },
+  { key: "open", label: "Åbne" },
+  { key: "upcoming", label: "Kommende" },
+  { key: "closed", label: "Lukkede" },
 ];
 
 export default function MineAktiviteter() {
@@ -20,6 +27,7 @@ export default function MineAktiviteter() {
   const [activities, setActivities] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showOnlyFav, setShowOnlyFav] = useState(false);
 
   useEffect(() => {
@@ -34,12 +42,21 @@ export default function MineAktiviteter() {
   const favIds = new Set(currentUser?.favorite_activity_ids || []);
 
   const myActivities = activities.filter((a) => myIds.has(a.id));
-  const otherOpen = activities.filter((a) => a.status === "open" && !myIds.has(a.id));
+  // "Tilgængelige" must respect status filter; default exclude closed since they cannot be added.
+  const otherAvailable = activities.filter((a) => {
+    if (myIds.has(a.id)) return false;
+    if (statusFilter === "all") return a.status !== "closed";
+    return a.status === statusFilter;
+  });
 
-  const matchesFilter = (a) => {
+  const matchesLevel = (a) => {
     if (filter === "project" && a.level !== "project") return false;
     if (filter === "program" && a.level !== "program") return false;
     return true;
+  };
+  const matchesStatus = (a) => {
+    if (statusFilter === "all") return true;
+    return a.status === statusFilter;
   };
   const matchesSearch = (a) => {
     if (!search.trim()) return true;
@@ -49,10 +66,11 @@ export default function MineAktiviteter() {
   };
 
   const filteredMine = myActivities
-    .filter(matchesFilter)
+    .filter(matchesLevel)
+    .filter(matchesStatus)
     .filter(matchesSearch)
     .filter((a) => (showOnlyFav ? favIds.has(a.id) : true));
-  const filteredOther = otherOpen.filter(matchesFilter).filter(matchesSearch);
+  const filteredOther = otherAvailable.filter(matchesLevel).filter(matchesSearch);
 
   const handleAdd = async (id) => {
     await ApiUsers.addMyActivity(currentUser.id, id);
@@ -104,7 +122,7 @@ export default function MineAktiviteter() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search + filters */}
       <div className="mb-4 flex flex-col md:flex-row gap-3">
         <div className="flex-1 relative">
           <MagnifyingGlass
@@ -119,14 +137,30 @@ export default function MineAktiviteter() {
             data-testid="my-search-input"
           />
         </div>
-        <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-md p-1">
-          {FILTERS.map((f) => (
+        <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-md p-1" data-testid="mine-level-filters">
+          {LEVEL_FILTERS.map((f) => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
               data-testid={`filter-${f.key}`}
               className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
                 filter === f.key
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-600 hover:bg-zinc-100"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-md p-1" data-testid="mine-status-filters">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setStatusFilter(f.key)}
+              data-testid={`status-filter-${f.key}`}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                statusFilter === f.key
                   ? "bg-zinc-900 text-white"
                   : "text-zinc-600 hover:bg-zinc-100"
               }`}
@@ -166,10 +200,18 @@ export default function MineAktiviteter() {
         </div>
       </section>
 
-      {/* Other open */}
+      {/* Other available */}
       <section data-testid="section-open">
         <div className="flex items-center gap-2 mb-3">
-          <h2 className="font-outfit text-lg font-semibold text-zinc-950">Tilgængelige åbne aktiviteter</h2>
+          <h2 className="font-outfit text-lg font-semibold text-zinc-950">
+            {statusFilter === "all"
+              ? "Tilgængelige aktiviteter"
+              : statusFilter === "open"
+                ? "Tilgængelige åbne aktiviteter"
+                : statusFilter === "upcoming"
+                  ? "Tilgængelige kommende aktiviteter"
+                  : "Lukkede aktiviteter"}
+          </h2>
           <span className="text-xs text-zinc-500 px-2 py-0.5 bg-zinc-100 rounded-full font-medium">
             {filteredOther.length}
           </span>
@@ -177,7 +219,7 @@ export default function MineAktiviteter() {
         <div className="bg-white border border-zinc-200 rounded-lg divide-y divide-zinc-100 shadow-sm">
           {filteredOther.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm text-zinc-500">
-              Ingen åbne aktiviteter matcher dit søgekriterie.
+              Ingen aktiviteter matcher dit filter.
             </div>
           ) : (
             filteredOther.map((a) => (

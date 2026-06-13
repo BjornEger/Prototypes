@@ -29,6 +29,12 @@ const FILTERS = [
   { key: "closed", label: "Lukkede" },
 ];
 
+const LEVEL_FILTERS = [
+  { key: "all", label: "Alle" },
+  { key: "project", label: "Projekt" },
+  { key: "program", label: "Program" },
+];
+
 const STATUS_COLOR = {
   open: "bg-emerald-100 text-emerald-800 border-emerald-200",
   upcoming: "bg-amber-50 text-amber-800 border-amber-200",
@@ -52,6 +58,7 @@ export default function Administration() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
@@ -75,6 +82,7 @@ export default function Administration() {
 
   const filtered = activities
     .filter((a) => (filter === "all" ? true : a.status === filter))
+    .filter((a) => (levelFilter === "all" ? true : a.level === levelFilter))
     .filter((a) => {
       if (!search.trim()) return true;
       const q = search.toLowerCase();
@@ -316,7 +324,21 @@ export default function Administration() {
             data-testid="admin-search"
           />
         </div>
-        <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-md p-1">
+        <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-md p-1" data-testid="admin-level-filters">
+          {LEVEL_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setLevelFilter(f.key)}
+              data-testid={`admin-level-filter-${f.key}`}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                levelFilter === f.key ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-md p-1" data-testid="admin-status-filters">
           {FILTERS.map((f) => (
             <button
               key={f.key}
