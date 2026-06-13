@@ -1,0 +1,106 @@
+{
+  "theme": "light",
+  "archetype": "Archetype 4 (Swiss & High-Contrast / Nordic Minimalism)",
+  "typography": {
+    "headings": {
+      "fontFamily": "Outfit, sans-serif",
+      "import_url": "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap",
+      "styles": "font-outfit tracking-tight"
+    },
+    "body": {
+      "fontFamily": "'IBM Plex Sans', sans-serif",
+      "import_url": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap",
+      "styles": "font-ibm-plex text-zinc-900 leading-relaxed"
+    },
+    "monospace": {
+      "fontFamily": "'IBM Plex Mono', monospace",
+      "import_url": "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
+    }
+  },
+  "colors": {
+    "background": "bg-zinc-50",
+    "surface": "bg-white",
+    "text": {
+      "primary": "text-zinc-950",
+      "secondary": "text-zinc-500",
+      "accent": "text-slate-900",
+      "error": "text-red-600",
+      "success": "text-emerald-700"
+    },
+    "border": "border-zinc-200",
+    "primary_button": "bg-zinc-900 hover:bg-zinc-800 text-white transition-colors",
+    "secondary_button": "bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-900 transition-colors",
+    "focus_ring": "focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-1 focus:ring-offset-white",
+    "table_hover": "hover:bg-zinc-50/80 transition-colors",
+    "zebra_stripe": "odd:bg-white even:bg-zinc-50/30"
+  },
+  "layout": {
+    "spacing": {
+      "container_padding": "p-6 md:p-8 lg:p-12",
+      "section_gap": "gap-8",
+      "dense_cell_padding": "px-3 py-2",
+      "element_gap": "gap-4"
+    },
+    "grid": {
+      "kpi_kards": "grid grid-cols-1 md:grid-cols-3 gap-4 mb-8",
+      "main_layout": "flex flex-col min-h-screen bg-zinc-50",
+      "table_wrapper": "overflow-x-auto border border-zinc-200 rounded-lg bg-white shadow-sm"
+    },
+    "radius": {
+      "outer": "rounded-lg",
+      "inner": "rounded-md",
+      "button": "rounded-md",
+      "input": "rounded-md"
+    }
+  },
+  "components": {
+    "header": {
+      "style": "sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-zinc-200 px-6 py-4 flex items-center justify-between",
+      "nav_links": "flex items-center gap-6 text-sm font-medium text-zinc-600",
+      "active_nav": "text-zinc-950 bg-zinc-100 px-3 py-1.5 rounded-md"
+    },
+    "time_entry_table": {
+      "table": "w-full text-sm text-left border-collapse",
+      "th": "sticky top-0 bg-zinc-50 border-b border-zinc-200 px-3 py-3 font-semibold text-zinc-700 whitespace-nowrap",
+      "td": "border-b border-zinc-100 p-0",
+      "frozen_column": "sticky left-0 z-10 bg-white border-r border-zinc-200 font-medium px-4 py-3 min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]",
+      "input_cell": "w-full h-full min-h-[44px] px-3 py-2 text-center text-zinc-900 bg-transparent border-none focus:bg-zinc-50 focus:ring-2 focus:ring-inset focus:ring-zinc-900 outline-none transition-all tabular-nums"
+    },
+    "kpi_card": {
+      "wrapper": "bg-white border border-zinc-200 rounded-lg p-5 flex flex-col gap-1 shadow-sm",
+      "label": "text-xs font-semibold text-zinc-500 uppercase tracking-widest",
+      "value": "text-3xl font-ibm-plex font-semibold text-zinc-950 tabular-nums"
+    }
+  },
+  "interactions_and_motion": {
+    "hover": "Subtle background shifts (zinc-50) and border darken (zinc-300).",
+    "focus": "All interactive elements must use the bold focus ring: focus:ring-2 focus:ring-zinc-900.",
+    "keyboard": "Implement Enter to jump down, Tab to jump right. Inputs should auto-select text on focus to allow rapid overriding.",
+    "transitions": "Fast and snappy. transition-all duration-150 ease-in-out."
+  },
+  "icons": {
+    "library": "@phosphor-icons/react",
+    "installation": "yarn add @phosphor-icons/react",
+    "usage": "Use regular or bold weights for a technical, crisp look. Avoid duotone for this dense utility app.",
+    "examples": ["CaretLeft", "CaretRight", "Copy", "FloppyDisk", "MagnifyingGlass", "CheckCircle"]
+  },
+  "media": {
+    "strategy": "No images. This is a highly dense, data-focused productivity application. Empty states should use clean typography and subtle Phosphor icons.",
+    "image_urls": {}
+  },
+  "accessibility_and_testing": {
+    "contrast": "Text must meet WCAG AA against background. Zinc-500 on Zinc-50 is the lightest allowed text.",
+    "test_ids": "All inputs MUST have data-testid. Example: data-testid='input-monday-proj1', data-testid='btn-save-week'."
+  },
+  "instructions_to_main_agent": [
+    "Install the required fonts via Google Fonts in index.css.",
+    "Add @phosphor-icons/react via yarn.",
+    "Configure tailwind.config.js to include 'outfit' and 'ibm-plex' in fontFamily.",
+    "Implement the 4 main screens (Indtast timer, Mine aktiviteter, Programoverblik, Administration).",
+    "The primary screen (Indtast timer) must feature a dense, spreadsheet-like table. The first column (Project + Activity) must be sticky left.",
+    "Time inputs must be highly keyboard accessible. Implement logic so Tab moves right and Shift+Tab moves left. Enter could move down or act as a save trigger.",
+    "Do NOT use standard Shadcn Cards for the main table; write custom HTML table structure to ensure perfect dense cell alignment and frozen columns.",
+    "Language must be strictly Danish.",
+    "Keep styling brutally minimal and functional (Nordic Ledger style). No gradients, no rounded inner cells."
+  ]
+}
