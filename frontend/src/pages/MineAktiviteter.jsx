@@ -7,6 +7,13 @@ import { Star, MagnifyingGlass, Plus, X, Pushpin } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
+const AVAILABLE_TITLE = {
+  all: "Tilgængelige aktiviteter",
+  open: "Tilgængelige åbne aktiviteter",
+  upcoming: "Tilgængelige kommende aktiviteter",
+  closed: "Lukkede aktiviteter",
+};
+
 const LEVEL_FILTERS = [
   { key: "all", label: "Alle" },
   { key: "project", label: "Projekt" },
@@ -204,13 +211,7 @@ export default function MineAktiviteter() {
       <section data-testid="section-open">
         <div className="flex items-center gap-2 mb-3">
           <h2 className="font-outfit text-lg font-semibold text-zinc-950">
-            {statusFilter === "all"
-              ? "Tilgængelige aktiviteter"
-              : statusFilter === "open"
-                ? "Tilgængelige åbne aktiviteter"
-                : statusFilter === "upcoming"
-                  ? "Tilgængelige kommende aktiviteter"
-                  : "Lukkede aktiviteter"}
+            {AVAILABLE_TITLE[statusFilter] || AVAILABLE_TITLE.all}
           </h2>
           <span className="text-xs text-zinc-500 px-2 py-0.5 bg-zinc-100 rounded-full font-medium">
             {filteredOther.length}

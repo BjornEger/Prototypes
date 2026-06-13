@@ -379,6 +379,60 @@ async def delete_time_entry(entry_id: str):
 
 # ---------- Program overblik ----------
 
+def _empty_project_total(p):
+    return {
+        "id": p["id"], "name": p["name"], "code": p["code"],
+        "hours": 0.0, "users": set(),
+    }
+
+
+def _accumulate_entries(entries, act_by_id, project_totals, program_total):
+    """Walk time-entries once and accumulate into project/program buckets.
+
+    Returns (total_hours, users_with_entries, users_saved).
+    """
+    total_hours = 0.0
+    users_with_entries = set()
+    users_saved = set()
+    for e in entries:
+        activity = act_by_id.get(e["activity_id"])
+        if not activity:
+            continue
+        hours = sum(float(v) for v in (e.get("entries") or {}).values())
+        total_hours += hours
+        users_with_entries.add(e["user_id"])
+        if e.get("saved"):
+            users_saved.add(e["user_id"])
+
+        is_program_level = activity.get("level") == "program" or not activity.get("project_id")
+        if is_program_level:
+            program_total["hours"] += hours
+            program_total["users"].add(e["user_id"])
+            continue
+        pid = activity.get("project_id")
+        if pid in project_totals:
+            project_totals[pid]["hours"] += hours
+            project_totals[pid]["users"].add(e["user_id"])
+    return total_hours, users_with_entries, users_saved
+
+
+def _build_breakdown(project_totals, program_total):
+    rows = [
+        {
+            "id": p["id"], "name": p["name"], "code": p["code"],
+            "hours": round(p["hours"], 2), "people": len(p["users"]),
+            "level": "project",
+        }
+        for p in project_totals.values()
+    ]
+    rows.append({
+        "id": program_total["id"], "name": program_total["name"], "code": program_total["code"],
+        "hours": round(program_total["hours"], 2), "people": len(program_total["users"]),
+        "level": "program",
+    })
+    return rows
+
+
 @api_router.get("/overview")
 async def program_overview(week_start_date: str):
     """Aggregate hours per project & program for a given week, plus missing reports."""
@@ -390,49 +444,23 @@ async def program_overview(week_start_date: str):
     ).to_list(5000)
 
     act_by_id = {a["id"]: a for a in activities}
+    project_totals = {p["id"]: _empty_project_total(p) for p in projects}
+    program_total = {
+        "id": "program", "name": "Programniveau / PMO", "code": "PRG",
+        "hours": 0.0, "users": set(),
+    }
 
-    project_totals = {p["id"]: {"id": p["id"], "name": p["name"], "code": p["code"], "hours": 0.0, "users": set()} for p in projects}
-    program_total = {"id": "program", "name": "Programniveau / PMO", "code": "PRG", "hours": 0.0, "users": set()}
+    total_hours, users_with_entries, users_saved = _accumulate_entries(
+        entries, act_by_id, project_totals, program_total,
+    )
 
-    total_hours = 0.0
-    users_with_entries = set()
-    users_saved = set()
-    for e in entries:
-        a = act_by_id.get(e["activity_id"])
-        if not a:
-            continue
-        h = sum(float(v) for v in (e.get("entries") or {}).values())
-        total_hours += h
-        users_with_entries.add(e["user_id"])
-        if e.get("saved"):
-            users_saved.add(e["user_id"])
-        if a.get("level") == "program" or not a.get("project_id"):
-            program_total["hours"] += h
-            program_total["users"].add(e["user_id"])
-        else:
-            pid = a.get("project_id")
-            if pid in project_totals:
-                project_totals[pid]["hours"] += h
-                project_totals[pid]["users"].add(e["user_id"])
-
-    breakdown = []
-    for pid, p in project_totals.items():
-        breakdown.append({
-            "id": p["id"], "name": p["name"], "code": p["code"],
-            "hours": round(p["hours"], 2), "people": len(p["users"]),
-            "level": "project",
-        })
-    breakdown.append({
-        "id": program_total["id"], "name": program_total["name"], "code": program_total["code"],
-        "hours": round(program_total["hours"], 2), "people": len(program_total["users"]),
-        "level": "program",
-    })
-
+    missing = [
+        {"id": u["id"], "name": u["name"], "email": u["email"]}
+        for u in users
+        if u["id"] not in users_saved
+    ]
     total_users = len(users)
-    missing = []
-    for u in users:
-        if u["id"] not in users_saved:
-            missing.append({"id": u["id"], "name": u["name"], "email": u["email"]})
+    saved_percent = round(100.0 * len(users_saved) / total_users, 1) if total_users else 0.0
 
     return {
         "week_start_date": week_start_date,
@@ -441,8 +469,8 @@ async def program_overview(week_start_date: str):
         "users_saved": len(users_saved),
         "users_with_entries": len(users_with_entries),
         "missing_users": missing,
-        "saved_percent": round(100.0 * len(users_saved) / total_users, 1) if total_users else 0.0,
-        "breakdown": breakdown,
+        "saved_percent": saved_percent,
+        "breakdown": _build_breakdown(project_totals, program_total),
     }
 
 
@@ -462,28 +490,21 @@ DANISH_LAST = [
 ]
 
 
-@api_router.post("/seed")
-async def seed_data():
-    """Wipe and seed demo data (25 users, 4 projects, ~16 activities, sample entries)."""
-    await db.users.delete_many({})
-    await db.projects.delete_many({})
-    await db.activities.delete_many({})
-    await db.time_entries.delete_many({})
-
-    # Projects
-    projects = [
+def _build_demo_projects() -> List[Project]:
+    return [
         Project(name="Projekt Alfa", code="ALF", status="active"),
         Project(name="Projekt Beta", code="BET", status="active"),
         Project(name="Projekt Gamma", code="GAM", status="active"),
         Project(name="Projekt Delta", code="DEL", status="active"),
     ]
-    await db.projects.insert_many([p.model_dump() for p in projects])
 
-    # Users (25). First 3 are pmo/projektleder.
-    users: List[User] = []
-    users.append(User(name="Mette Hansen", email="mette.hansen@program.dk", role="pmo", weekly_hours_norm=37.0))
-    users.append(User(name="Lars Pedersen", email="lars.pedersen@program.dk", role="projektleder", weekly_hours_norm=37.0))
-    users.append(User(name="Anne Larsen", email="anne.larsen@program.dk", role="projektleder", weekly_hours_norm=37.0))
+
+def _build_demo_users() -> List[User]:
+    users: List[User] = [
+        User(name="Mette Hansen", email="mette.hansen@program.dk", role="pmo", weekly_hours_norm=37.0),
+        User(name="Lars Pedersen", email="lars.pedersen@program.dk", role="projektleder", weekly_hours_norm=37.0),
+        User(name="Anne Larsen", email="anne.larsen@program.dk", role="projektleder", weekly_hours_norm=37.0),
+    ]
     for i in range(22):
         first = DANISH_FIRST[(i + 3) % len(DANISH_FIRST)]
         last = DANISH_LAST[(i * 3 + 1) % len(DANISH_LAST)]
@@ -493,14 +514,12 @@ async def seed_data():
             role="medarbejder",
             weekly_hours_norm=37.0,
         ))
+    return users
 
-    pmo = users[0]
-    pl_lars = users[1]
-    pl_anne = users[2]
 
-    # Activities
+def _build_demo_activities(projects: List[Project], pmo: User, pl_lars: User, pl_anne: User) -> List[Activity]:
     alfa, beta, gamma, delta = projects
-    activities = [
+    return [
         Activity(name="Analyse af proceslandskab", project_id=alfa.id, level="project", owner_user_id=pl_lars.id, status="open"),
         Activity(name="Workshopforberedelse", project_id=alfa.id, level="project", owner_user_id=pl_lars.id, status="open"),
         Activity(name="Analyseaktivitet uden ejer", project_id=alfa.id, level="project", owner_user_id=None, status="open"),
@@ -523,12 +542,15 @@ async def seed_data():
         Activity(name="Gammel fællesaktivitet", project_id=None, level="program", owner_user_id=pmo.id, status="open"),
         Activity(name="Programopstart", project_id=None, level="program", owner_user_id=pmo.id, status="closed"),
     ]
-    await db.activities.insert_many([a.model_dump() for a in activities])
 
-    open_activity_ids = [a.id for a in activities if a.status == "open"]
 
-    # Assign each user 3-5 activities and a couple of favorites
-    import random
+# `random` is used here only to generate non-security demo data (sample hours, name
+# pairing in the seed). It is seeded deterministically (`random.seed(7)`) and is
+# never used for tokens, passwords or anything security sensitive.
+import random  # noqa: E402
+
+
+def _assign_my_activities(users: List[User], open_activity_ids: List[str]) -> None:
     random.seed(7)
     for u in users:
         n = random.randint(3, 5)
@@ -536,37 +558,62 @@ async def seed_data():
         u.my_activity_ids = my
         u.favorite_activity_ids = my[: min(2, len(my))]
 
-    await db.users.insert_many([u.model_dump() for u in users])
 
-    # Seed time entries for current week + previous week for first 20 users
-    today = date.today()
-    cur_monday = _monday_of(today)
+def _build_week_hours_for(activity_ids: List[str], week_monday: date, saved: bool, user_id: str) -> List[dict]:
+    out: List[dict] = []
+    for aid in activity_ids:
+        entries_for_act = {}
+        total = 0.0
+        for d in range(5):
+            h = random.choice([0, 0, 1, 1.5, 2, 2.5, 3])
+            if h:
+                entries_for_act[(week_monday + timedelta(days=d)).isoformat()] = h
+                total += h
+        if total == 0:
+            continue
+        out.append(TimeEntry(
+            user_id=user_id,
+            activity_id=aid,
+            week_start_date=week_monday.isoformat(),
+            entries=entries_for_act,
+            saved=saved,
+        ).model_dump())
+    return out
+
+
+def _build_demo_time_entries(users: List[User]) -> List[dict]:
+    cur_monday = _monday_of(date.today())
     prev_monday = cur_monday - timedelta(days=7)
-
     sample_users = users[:20]
-    entries_to_insert = []
+    rows: List[dict] = []
     for u in sample_users:
         for week_monday, saved in [(prev_monday, True), (cur_monday, False)]:
-            week_iso = week_monday.isoformat()
-            for aid in u.my_activity_ids:
-                # Random 0-3h per weekday, 0 weekends
-                entries = {}
-                total = 0
-                for d in range(5):
-                    h = random.choice([0, 0, 1, 1.5, 2, 2.5, 3])
-                    if h:
-                        entries[(week_monday + timedelta(days=d)).isoformat()] = h
-                        total += h
-                if total == 0:
-                    continue
-                te = TimeEntry(
-                    user_id=u.id,
-                    activity_id=aid,
-                    week_start_date=week_iso,
-                    entries=entries,
-                    saved=saved,
-                )
-                entries_to_insert.append(te.model_dump())
+            rows.extend(_build_week_hours_for(u.my_activity_ids, week_monday, saved, u.id))
+    return rows
+
+
+@api_router.post("/seed")
+async def seed_data():
+    """Wipe and seed demo data (25 users, 4 projects, ~16 activities, sample entries)."""
+    await db.users.delete_many({})
+    await db.projects.delete_many({})
+    await db.activities.delete_many({})
+    await db.time_entries.delete_many({})
+
+    projects = _build_demo_projects()
+    await db.projects.insert_many([p.model_dump() for p in projects])
+
+    users = _build_demo_users()
+    pmo, pl_lars, pl_anne = users[0], users[1], users[2]
+
+    activities = _build_demo_activities(projects, pmo, pl_lars, pl_anne)
+    await db.activities.insert_many([a.model_dump() for a in activities])
+
+    open_activity_ids = [a.id for a in activities if a.status == "open"]
+    _assign_my_activities(users, open_activity_ids)
+    await db.users.insert_many([u.model_dump() for u in users])
+
+    entries_to_insert = _build_demo_time_entries(users)
     if entries_to_insert:
         await db.time_entries.insert_many(entries_to_insert)
 

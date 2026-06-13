@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { ApiUsers } from "@/lib/api";
 
 const UserContext = createContext(null);
@@ -10,20 +10,23 @@ export function UserProvider({ children }) {
   );
   const [loading, setLoading] = useState(true);
 
-  const refresh = async () => {
+  // Stable callback so consumers (and the bootstrap effect) can include it in deps
+  // without retriggering on every render.
+  const refresh = useCallback(async () => {
     const list = await ApiUsers.list();
     setUsers(list);
-    if (!currentUserId && list.length > 0) {
-      // pick first non-pmo user as default if none selected, else first
+    setCurrentUserId((prev) => {
+      if (prev) return prev;
       const emp = list.find((u) => u.role === "medarbejder") || list[0];
-      setCurrentUserId(emp.id);
+      if (!emp) return prev;
       localStorage.setItem("tr_current_user_id", emp.id);
-    }
-  };
+      return emp.id;
+    });
+  }, []);
 
   useEffect(() => {
     refresh().finally(() => setLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refresh]);
 
   const selectUser = (id) => {
     setCurrentUserId(id);

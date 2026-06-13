@@ -124,10 +124,14 @@ export default function Administration() {
       toast.error("Aktiviteten skal have et navn");
       return;
     }
+    let projectId = null;
+    if (form.level === "project" && form.project_id !== "__program") {
+      projectId = form.project_id;
+    }
     const payload = {
       name: form.name.trim(),
       level: form.level,
-      project_id: form.level === "program" ? null : form.project_id === "__program" ? null : form.project_id,
+      project_id: projectId,
       owner_user_id: form.owner_user_id === "__none" ? null : form.owner_user_id,
       status: form.status,
       requires_note: form.requires_note,

@@ -1,0 +1,34 @@
+{
+  "summary": "Regression test pass after filter additions + refactor. Backend pytest 11/11 PASSED. /api/seed produced exactly 25 users, 4 projects, 16 activities, 167 time entries; my_activity_ids in {3,4,5}, favorite_activity_ids = 2 per user. /api/overview returns all 8 expected keys (week_start_date, total_hours, total_users, users_saved, users_with_entries, missing_users, saved_percent, breakdown) with 5 breakdown rows (4 projects + Programniveau). Time-entry upsert verified idempotent; save-week sets saved=true; copy-previous shifts dates +7 and clones values. Activity CRUD works for both project (with project_id) and program (project_id=null) levels. Frontend: Mine aktiviteter has both data-testid='mine-level-filters' (filter-all/project/program) and data-testid='mine-status-filters' (status-filter-all/open/upcoming/closed) and they combine with AND logic (verified: 13 rows -> 9 with level=project -> 2 with project+upcoming). Administration has both data-testid='admin-level-filters' (admin-level-filter-all/project/program) and data-testid='admin-status-filters' (admin-filter-all/open/upcoming/closed); AND-combo verified (program -> 5 rows, program+closed -> 1 row). Indtast timer cell edit accepts decimal comma, Tab moves focus to next testid cell, week-total updates reactively (29.5 -> 42.5 after edit), Gem uge -> 'Gemt for ugen'. No regressions.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/time-entries/copy-previous", "issue": "Carried over from iteration 1: when destination week already has saved=true entries, merge sets saved=false on pre-existing rows. Behavioral note only."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_tidsregistrering.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py refactor split aggregation into _empty_project_total/_accumulate_entries/_build_breakdown and seed into _build_demo_* helpers - clean, single-responsibility, no behavior change observed.",
+    "_assign_my_activities uses random.seed(7) so test_users_list and test_overview remain deterministic - good.",
+    "Code now uses 'import random' mid-file with noqa:E402 - acceptable but a top-level import would be cleaner.",
+    "MineAktiviteter.jsx and Administration.jsx now declare LEVEL_FILTERS + STATUS_FILTERS at module scope and apply both with AND - implementation matches spec.",
+    "IndtastTimer.handleCellChange now prebuilds the merged value before passing it into setEntries' functional updater, avoiding setSavingMap inside another setState - correctly addressed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (11/11 pytest)", "frontend": "100% of regression + new filter flows"},
+  "test_credentials": "No auth. User switched via data-testid='user-select-trigger'.",
+  "seed_data_creation": "Re-seeded via POST /api/seed during validation; counts confirmed (25/4/16/167).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All filter testids verified live: mine-level-filters/{filter-all,filter-project,filter-program}, mine-status-filters/{status-filter-all,status-filter-open,status-filter-upcoming,status-filter-closed}, admin-level-filters/{admin-level-filter-all,admin-level-filter-project,admin-level-filter-program}, admin-status-filters/{admin-filter-all,admin-filter-open,admin-filter-upcoming,admin-filter-closed}. Backend test suite at /app/backend/tests/test_tidsregistrering.py is idempotent and uses future-dated weeks. /api/overview now also returns users_with_entries (already in iteration-1 baseline but explicit in new shape).",
+  "rca of the issue": "No bugs."
+}
